@@ -20,6 +20,7 @@ import android.annotation.SuppressLint;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -91,7 +92,12 @@ public class BluetoothChatFragment extends Fragment {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
 
-        // TODO: Get local Bluetooth adapter
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if (mBluetoothAdapter == null) {
+            Toast.makeText(getActivity().getApplicationContext(), "Bluetooth not available", Toast.LENGTH_LONG).show();
+            getActivity().finish();
+        }
 
         /**
          *  TODO: If the adapter is null, then Bluetooth is not supported.
@@ -115,8 +121,9 @@ public class BluetoothChatFragment extends Fragment {
                  * TODO: Otherwise, check if the BluetoothChatService is null, and if so call setupChat() to set it up.
                  */
 
-            }
-            else if(mChatService == null){
+                startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQUEST_ENABLE_BT);
+
+            } else if(mChatService == null) {
                 setupChat(); //start the chat service
             }
 
@@ -204,6 +211,12 @@ public class BluetoothChatFragment extends Fragment {
          * TODO: If not, send an Implicit Intent for the ACTION_REQUEST_DISCOVERABLE action (with an extra for the EXTRA_DISCOVERABLE_DURATION)
          */
 
+        if (mBluetoothAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+            Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            intent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+            startActivity(intent);
+        }
+
     }
 
     /**
@@ -227,7 +240,10 @@ public class BluetoothChatFragment extends Fragment {
              * TODO: set the mOutStringBuffer's length to 0 (since we've cleared the message
              * TODO: set the mOutEditText's text to be the (now empty) mOutStringBuffer
              */
-
+            byte[] messageBytes = message.getBytes();
+            mChatService.write(messageBytes);
+            mOutStringBuffer.setLength(0);
+            mOutEditText.setText(mOutStringBuffer);
         }
     }
 
@@ -377,6 +393,10 @@ public class BluetoothChatFragment extends Fragment {
          * TODO: Then tell the mChatService to connect to that device!
          */
 
+        Bundle extras = data.getExtras();
+        String mac = extras.getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mac);
+        mChatService.connect(device, secure);
     }
 
     @Override
